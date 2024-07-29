@@ -18,28 +18,28 @@ local _ = require("gettext")
 local T = ffiutil.template
 
 local path = DataStorage:getFullDataDir()
-local plugPath = path .. "/plugins/filebrowser.koplugin/filebrowser"
-local binPath = plugPath .. "/filebrowser"
-local logPath = plugPath .. "/filebrowser.log"
-local pidFilePath = "/tmp/filebrowser_koreader.pid"
+local plugPath = path .. "/plugins/libgen-opds.koplugin/libgen-opds"
+local binPath = plugPath .. "/libgen-opds"
+local logPath = plugPath .. "/libgen-opds.log"
+local pidFilePath = "/tmp/libgen-opds_koreader.pid"
 
 if not util.pathExists(binPath) or os.execute("start-stop-daemon") == 127 then
     return { disabled = true, }
 end
 
-local Filebrowser = WidgetContainer:extend {
-    name = "Filebrowser",
+local libgen-opds = WidgetContainer:extend {
+    name = "libgen-opds",
     is_doc_only = false,
 }
 
-function Filebrowser:init()
-    self.filebrowser_port = G_reader_settings:readSetting("filebrowser_port") or "80"
+function libgen-opds:init()
+    self.libgen-opds_port = G_reader_settings:readSetting("libgen-opds_port") or "80"
     self.ui.menu:registerToMainMenu(self)
     self:onDispatcherRegisterActions()
 end
 
-function Filebrowser:start()
-    -- Since Filebrowser doesn't start as a deamon by default and has no option to
+function libgen-opds:start()
+    -- Since libgen-opds doesn't start as a deamon by default and has no option to
     -- set a pidfile, we launch it using the start-stop-daemon helper. On Kobo and Kindle,
     -- this command is provided by BusyBox:
     -- https://busybox.net/downloads/BusyBox.html#start_stop_daemon
@@ -49,7 +49,7 @@ function Filebrowser:start()
 
     -- Use a pidfile to identify the process later, set --oknodo to not fail if
     -- the process is already running and set --background to start as a
-    -- background process. On Filebrowser itself, set the root directory,
+    -- background process. On libgen-opds itself, set the root directory,
     -- and a log file.
     local cmd = string.format(
         "start-stop-daemon -S "
@@ -60,48 +60,48 @@ function Filebrowser:start()
         .. "-- "
         .. "-a 0.0.0.0 "
         .. "-r %s " -- dataPath
-        .. "-p %s " -- filebrowser_port
+        .. "-p %s " -- libgen-opds_port
         .. "-l %s", -- logPath
         pidFilePath,
         binPath,
 
         dataPath,
-        self.filebrowser_port,
+        self.libgen-opds_port,
         logPath
     )
 
     -- Make a hole in the Kindle's firewall
     if Device:isKindle() then
-    logger.dbg("[Filebrowser] Opening port: ", filebrowser_port)
+    logger.dbg("[libgen-opds] Opening port: ", libgen-opds_port)
         os.execute(string.format("%s %s %s",
-            "iptables -A INPUT -p tcp --dport", self.filebrowser_port,
+            "iptables -A INPUT -p tcp --dport", self.libgen-opds_port,
             "-m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT"))
         os.execute(string.format("%s %s %s",
-            "iptables -A OUTPUT -p tcp --sport", self.filebrowser_port,
+            "iptables -A OUTPUT -p tcp --sport", self.libgen-opds_port,
             "-m conntrack --ctstate ESTABLISHED -j ACCEPT"))
     end
 
-    logger.dbg("[Filebrowser] Launching Filebrowser: ", cmd)
+    logger.dbg("[libgen-opds] Launching libgen-opds: ", cmd)
 
     local status = os.execute(cmd)
     if status == 0 then
-        logger.dbg("[Filebrowser] Filebrowser started. Find Filebrowser logs at ", logPath)
+        logger.dbg("[libgen-opds] libgen-opds started. Find libgen-opds logs at ", logPath)
         local info = InfoMessage:new {
             timeout = 2,
-            text = _("Filebrowser started.")
+            text = _("libgen-opds started.")
         }
         UIManager:show(info)
     else
-        logger.dbg("[Filebrowser] Failed to start Filebrowser, status: ", status)
+        logger.dbg("[libgen-opds] Failed to start libgen-opds, status: ", status)
         local info = InfoMessage:new {
             icon = "notice-warning",
-            text = _("Failed to start Filebrowser."),
+            text = _("Failed to start libgen-opds."),
         }
         UIManager:show(info)
     end
 end
 
-function Filebrowser:isRunning()
+function libgen-opds:isRunning()
     -- Use start-stop-daemon -K (to stop a process) in --test mode to find if
     -- there are any matching processes for this pidfile and executable. If
     -- there are any matching processes, this exits with status code 0.
@@ -111,16 +111,16 @@ function Filebrowser:isRunning()
         binPath
     )
 
-    logger.dbg("[Filebrowser] Check if Filebrowser is running: ", cmd)
+    logger.dbg("[libgen-opds] Check if libgen-opds is running: ", cmd)
     
     local status = os.execute(cmd)
 
-    logger.dbg("[Filebrowser] Running status exit code (0 -> running): ", status)
+    logger.dbg("[libgen-opds] Running status exit code (0 -> running): ", status)
 
     return status == 0
 end
 
-function Filebrowser:stop()
+function libgen-opds:stop()
     -- Use start-stop-daemon -K to stop the process, with --oknodo to exit with
     -- status code 0 if there are no matching processes in the first place.
     local cmd = string.format(
@@ -129,11 +129,11 @@ function Filebrowser:stop()
         binPath
     )
 
-    logger.dbg("[Filebrowser] Stopping Filebrowser: ", cmd)
+    logger.dbg("[libgen-opds] Stopping libgen-opds: ", cmd)
 
     -- Plug the hole in the Kindle's firewall
     if Device:isKindle() then
-    logger.dbg("[Filebrowser] Closing port: ", filebrowser_port)
+    logger.dbg("[libgen-opds] Closing port: ", libgen-opds_port)
         os.execute(string.format("%s %s %s",
             "iptables -D INPUT -p tcp --dport", self.SSH_port,
             "-m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT"))
@@ -143,28 +143,28 @@ function Filebrowser:stop()
     end
     local status = os.execute(cmd)
     if status == 0 then
-        logger.dbg("[Filebrowser] Filebrowser stopped.")
+        logger.dbg("[libgen-opds] libgen-opds stopped.")
 
         UIManager:show(InfoMessage:new {
-            text = _("Filebrowser stopped!"),
+            text = _("libgen-opds stopped!"),
             timeout = 2,
         })
 
         if util.pathExists(pidFilePath) then
-            logger.dbg("[Filebrowser] Removing PID file at ", pidFilePath)
+            logger.dbg("[libgen-opds] Removing PID file at ", pidFilePath)
             os.remove(pidFilePath)
         end
     else
-        logger.dbg("[Filebrowser] Failed to stop Filebrowser, status: ", status)
+        logger.dbg("[libgen-opds] Failed to stop libgen-opds, status: ", status)
 
         UIManager:show(InfoMessage:new {
             icon = "notice-warning",
-            text = _("Failed to stop Filebrowser.")
+            text = _("Failed to stop libgen-opds.")
         })
     end  
 end
 
-function Filebrowser:onToggleFilebrowser()
+function libgen-opds:onTogglelibgen-opds()
     if self:isRunning() then
         self:stop()
     else
@@ -172,14 +172,14 @@ function Filebrowser:onToggleFilebrowser()
     end
 end
 
-function Filebrowser:addToMainMenu(menu_items)
-    menu_items.filebrowser = {
-        text = _("Filebrowser"),
+function libgen-opds:addToMainMenu(menu_items)
+    menu_items.libgen-opds = {
+        text = _("libgen-opds"),
         sorting_hint = "network",
         keep_menu_open = true,
         checked_func = function() return self:isRunning() end,
         callback = function(touchmenu_instance)
-            self:onToggleFilebrowser()
+            self:onTogglelibgen-opds()
             -- sleeping might not be needed, but it gives the feeling
             -- something has been done and feedback is accurate
             ffiutil.sleep(1)
@@ -188,9 +188,9 @@ function Filebrowser:addToMainMenu(menu_items)
     }
 end
 
-function Filebrowser:onDispatcherRegisterActions()
-    Dispatcher:registerAction("toggle_filebrowser",
-        { category = "none", event = "ToggleFilebrowser", title = _("Toggle Filebrowser"), general = true })
+function libgen-opds:onDispatcherRegisterActions()
+    Dispatcher:registerAction("toggle_libgen-opds",
+        { category = "none", event = "Togglelibgen-opds", title = _("Toggle libgen-opds"), general = true })
 end
 
-return Filebrowser
+return libgen-opds

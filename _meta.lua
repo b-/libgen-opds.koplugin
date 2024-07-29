@@ -1,6 +1,6 @@
 local _ = require("gettext")
 return {
-    name = "filebrowser",
-    fullname = _("Filebrowser"),
-    description = _([[Run Filebrowser server to upload and download files.]]),
+    name = "libgen-opds",
+    fullname = _("libgen-opds"),
+    description = _([[Run libgen-opds bridge.]]),
 }
