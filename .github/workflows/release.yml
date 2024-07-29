@@ -39,10 +39,10 @@ jobs:
         run: |
           libgen_opds_TAG="${{steps.get_libgen-opds.outputs.tag_name}}"
           if [[ "${{ github.ref_type  }}" == "tag" ]] ; then
-            VERSION="${{  github.ref_name  }}-${libgen-opds_TAG#v}"
+            VERSION="${{  github.ref_name  }}-${libgen_opds_TAG#v}"
             # example: ${{  env.PRODUCT_NAME  }}_v1.0-2.30.0-arm64.tar.gz
           else
-            VERSION="${{  github.ref_name  }}_$(date -I)-${libgen-opds_TAG#v}"
+            VERSION="${{  github.ref_name  }}_$(date -I)-${libgen_opds_TAG#v}"
             # example: ${{  env.PRODUCT_NAME  }}_main_2024-07-15_2.30.0-arm64.tar.gz
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
