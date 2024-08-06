@@ -1,4 +1,4 @@
-# ![libgen-opds logo](https://avatars.githubusercontent.com/u/35781395?s=48&v=4) libgen-opds KOReader Plugin
+# libgen-opds KOReader Plugin
 
 *Run libgen-opds server from within KOReader.*
 
