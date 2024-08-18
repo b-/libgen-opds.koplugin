@@ -27,19 +27,21 @@ if not util.pathExists(binPath) or os.execute("start-stop-daemon") == 127 then
     return { disabled = true, }
 end
 
-local libgen-opds = WidgetContainer:extend {
-    name = "libgen-opds",
+local libgen_opds = WidgetContainer:extend {
+    name = "libgen_opds",
     is_doc_only = false,
 }
 
-function libgen-opds:init()
-    self.libgen-opds_port = G_reader_settings:readSetting("libgen-opds_port") or "80"
+function libgen_opds:init()
+    self.libgen_opds_user = G_reader_settings:readSetting("libgen_opds_user") or "user"
+    self.libgen_opds_pass = G_reader_settings:readSetting("libgen_opds_pass") or "pass"
+    self.libgen_opds_port = G_reader_settings:readSetting("libgen_opds_port") or "5144"
     self.ui.menu:registerToMainMenu(self)
     self:onDispatcherRegisterActions()
 end
 
-function libgen-opds:start()
-    -- Since libgen-opds doesn't start as a deamon by default and has no option to
+function libgen_opds:start()
+    -- Since libgen_opds doesn't start as a daemon by default and has no option to
     -- set a pidfile, we launch it using the start-stop-daemon helper. On Kobo and Kindle,
     -- this command is provided by BusyBox:
     -- https://busybox.net/downloads/BusyBox.html#start_stop_daemon
@@ -49,59 +51,43 @@ function libgen-opds:start()
 
     -- Use a pidfile to identify the process later, set --oknodo to not fail if
     -- the process is already running and set --background to start as a
-    -- background process. On libgen-opds itself, set the root directory,
+    -- background process. On libgen_opds itself, set the root directory,
     -- and a log file.
     local cmd = string.format(
         "start-stop-daemon -S "
         .. "--make-pidfile --pidfile %s " -- pidFilePath
         .. "--oknodo "
         .. "--background "
-        .. "--exec %s " -- binPath
+        .. "--startas /usr/bin/env API_USERNAME=user API_PASSWORD=pass " -- libgen_opds_user, libgen_opds_pass
+        .. "%s " -- binPath
         .. "-- "
-        .. "-a 0.0.0.0 "
-        .. "-r %s " -- dataPath
-        .. "-p %s " -- libgen-opds_port
-        .. "-l %s", -- logPath
+        .. "serve",
         pidFilePath,
-        binPath,
-
-        dataPath,
-        self.libgen-opds_port,
-        logPath
+        binPath
     )
 
-    -- Make a hole in the Kindle's firewall
-    if Device:isKindle() then
-    logger.dbg("[libgen-opds] Opening port: ", libgen-opds_port)
-        os.execute(string.format("%s %s %s",
-            "iptables -A INPUT -p tcp --dport", self.libgen-opds_port,
-            "-m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT"))
-        os.execute(string.format("%s %s %s",
-            "iptables -A OUTPUT -p tcp --sport", self.libgen-opds_port,
-            "-m conntrack --ctstate ESTABLISHED -j ACCEPT"))
-    end
 
-    logger.dbg("[libgen-opds] Launching libgen-opds: ", cmd)
+    logger.dbg("[libgen_opds] Launching libgen_opds: ", cmd)
 
     local status = os.execute(cmd)
     if status == 0 then
-        logger.dbg("[libgen-opds] libgen-opds started. Find libgen-opds logs at ", logPath)
+        logger.dbg("[libgen_opds] libgen_opds started. Find libgen_opds logs at ", logPath)
         local info = InfoMessage:new {
             timeout = 2,
-            text = _("libgen-opds started.")
+            text = _("libgen_opds started.")
         }
         UIManager:show(info)
     else
-        logger.dbg("[libgen-opds] Failed to start libgen-opds, status: ", status)
+        logger.dbg("[libgen_opds] Failed to start libgen_opds, status: ", status)
         local info = InfoMessage:new {
             icon = "notice-warning",
-            text = _("Failed to start libgen-opds."),
+            text = _("Failed to start libgen_opds."),
         }
         UIManager:show(info)
     end
 end
 
-function libgen-opds:isRunning()
+function libgen_opds:isRunning()
     -- Use start-stop-daemon -K (to stop a process) in --test mode to find if
     -- there are any matching processes for this pidfile and executable. If
     -- there are any matching processes, this exits with status code 0.
@@ -111,16 +97,16 @@ function libgen-opds:isRunning()
         binPath
     )
 
-    logger.dbg("[libgen-opds] Check if libgen-opds is running: ", cmd)
+    logger.dbg("[libgen_opds] Check if libgen_opds is running: ", cmd)
     
     local status = os.execute(cmd)
 
-    logger.dbg("[libgen-opds] Running status exit code (0 -> running): ", status)
+    logger.dbg("[libgen_opds] Running status exit code (0 -> running): ", status)
 
     return status == 0
 end
 
-function libgen-opds:stop()
+function libgen_opds:stop()
     -- Use start-stop-daemon -K to stop the process, with --oknodo to exit with
     -- status code 0 if there are no matching processes in the first place.
     local cmd = string.format(
@@ -129,42 +115,32 @@ function libgen-opds:stop()
         binPath
     )
 
-    logger.dbg("[libgen-opds] Stopping libgen-opds: ", cmd)
+    logger.dbg("[libgen_opds] Stopping libgen_opds: ", cmd)
 
-    -- Plug the hole in the Kindle's firewall
-    if Device:isKindle() then
-    logger.dbg("[libgen-opds] Closing port: ", libgen-opds_port)
-        os.execute(string.format("%s %s %s",
-            "iptables -D INPUT -p tcp --dport", self.SSH_port,
-            "-m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT"))
-        os.execute(string.format("%s %s %s",
-            "iptables -D OUTPUT -p tcp --sport", self.SSH_port,
-            "-m conntrack --ctstate ESTABLISHED -j ACCEPT"))
-    end
     local status = os.execute(cmd)
     if status == 0 then
-        logger.dbg("[libgen-opds] libgen-opds stopped.")
+        logger.dbg("[libgen_opds] libgen_opds stopped.")
 
         UIManager:show(InfoMessage:new {
-            text = _("libgen-opds stopped!"),
+            text = _("libgen_opds stopped!"),
             timeout = 2,
         })
 
         if util.pathExists(pidFilePath) then
-            logger.dbg("[libgen-opds] Removing PID file at ", pidFilePath)
+            logger.dbg("[libgen_opds] Removing PID file at ", pidFilePath)
             os.remove(pidFilePath)
         end
     else
-        logger.dbg("[libgen-opds] Failed to stop libgen-opds, status: ", status)
+        logger.dbg("[libgen_opds] Failed to stop libgen_opds, status: ", status)
 
         UIManager:show(InfoMessage:new {
             icon = "notice-warning",
-            text = _("Failed to stop libgen-opds.")
+            text = _("Failed to stop libgen_opds.")
         })
     end  
 end
 
-function libgen-opds:onTogglelibgen-opds()
+function libgen_opds:onTogglelibgen_opds()
     if self:isRunning() then
         self:stop()
     else
@@ -172,14 +148,14 @@ function libgen-opds:onTogglelibgen-opds()
     end
 end
 
-function libgen-opds:addToMainMenu(menu_items)
-    menu_items.libgen-opds = {
-        text = _("libgen-opds"),
+function libgen_opds:addToMainMenu(menu_items)
+    menu_items.libgen_opds = {
+        text = _("libgen_opds"),
         sorting_hint = "network",
         keep_menu_open = true,
         checked_func = function() return self:isRunning() end,
         callback = function(touchmenu_instance)
-            self:onTogglelibgen-opds()
+            self:onTogglelibgen_opds()
             -- sleeping might not be needed, but it gives the feeling
             -- something has been done and feedback is accurate
             ffiutil.sleep(1)
@@ -188,9 +164,10 @@ function libgen-opds:addToMainMenu(menu_items)
     }
 end
 
-function libgen-opds:onDispatcherRegisterActions()
-    Dispatcher:registerAction("toggle_libgen-opds",
-        { category = "none", event = "Togglelibgen-opds", title = _("Toggle libgen-opds"), general = true })
+function libgen_opds:onDispatcherRegisterActions()
+    Dispatcher:registerAction("toggle_libgen_opds",
+        { category = "none", event = "Togglelibgen_opds", title = _("Toggle libgen_opds"), general = true })
 end
 
-return libgen-opds
+return libgen_opds
+

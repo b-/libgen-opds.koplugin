@@ -34,7 +34,8 @@ jobs:
       - name: Template our release name
         id: release_name
         run: |
-          libgen_opds_TAG="${{steps.get_libgen-opds.outputs.tag_name}}"
+          libgen_opds_TAG_raw="${{steps.get_libgen-opds.outputs.tag_name}}"
+          libgen_opds_TAG="$(echo "$libgen_opds_TAG_raw" | iconv -t ascii//TRANSLIT | sed -r s/[^a-zA-Z0-9]+/-/g | sed -r s/^-+\|-+$//g | tr A-Z a-z)"
           if [[ "${{ github.ref_type  }}" == "tag" ]] ; then
             VERSION="${{  github.ref_name  }}-${libgen_opds_TAG#v}"
             # example: ${{  env.PRODUCT_NAME  }}_v1.0-2.30.0-arm64.tar.gz
@@ -42,7 +43,7 @@ jobs:
             VERSION="${{  github.ref_name  }}_$(date -I)-${libgen_opds_TAG#v}"
             # example: ${{  env.PRODUCT_NAME  }}_main_2024-07-15_2.30.0-arm64.tar.gz
           fi
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" | tee -a $GITHUB_OUTPUT
           echo "outfile=${{  env.PRODUCT_NAME  }}_${VERSION}-${{  matrix.platform  }}.tar.gz" >> "$GITHUB_OUTPUT"
       - name: Compress archive
         run: tar -czvf "${{  steps.release_name.outputs.outfile  }}" ${{  env.PRODUCT_NAME  }}
