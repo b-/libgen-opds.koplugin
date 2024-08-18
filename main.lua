@@ -170,3 +170,4 @@ function libgen_opds:onDispatcherRegisterActions()
 end
 
 return libgen_opds
+
