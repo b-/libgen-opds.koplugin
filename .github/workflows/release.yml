@@ -8,7 +8,7 @@ on:
     tags:
       - "*"
     branches:
-        main
+        "*"
 
 jobs:
   build:
