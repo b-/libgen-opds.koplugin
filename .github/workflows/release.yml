@@ -5,10 +5,7 @@ env:
 
 on:
   push:
-    tags:
-      - "*"
-    branches:
-      - "*"
+  workflow-dispatch:
 
 jobs:
   build:
